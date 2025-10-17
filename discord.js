@@ -1,19 +1,20 @@
 // ==================== IMPORT & CONFIGURATION ====================
 require('dotenv').config();
-const { 
-    Client, 
-    GatewayIntentBits, 
-    EmbedBuilder, 
-    PermissionFlagsBits, 
-    ActionRowBuilder, 
-    ButtonBuilder, 
-    ButtonStyle, 
+const {
+    Client,
+    GatewayIntentBits,
+    EmbedBuilder,
+    PermissionFlagsBits,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
     ChannelType,
-    AttachmentBuilder 
+    AttachmentBuilder
 } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 const { createCanvas, loadImage } = require('canvas');
+const defaultBadWords = require('./bad_words.js');
 
 // Check token
 if (!process.env.BOT_TOKEN) {
@@ -57,7 +58,7 @@ let db = {
         antiSpam: true,
         antiLink: false,
         antiInvite: true,
-        badWords: ['toxic', 'hate', 'spam'],
+        badWords: defaultBadWords,
         whitelistedLinks: ['youtube.com', 'discord.gg', 'github.com'],
         maxMentions: 5,
         maxMessages: 5,
@@ -185,35 +186,35 @@ function getLeaderboard(guildId, limit = 10) {
 async function generateRankCard(user, levelData, rank) {
     const canvas = createCanvas(800, 200);
     const ctx = canvas.getContext('2d');
-    
+
     // Background
     const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
     gradient.addColorStop(0, '#23272A');
     gradient.addColorStop(1, '#2C2F33');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
+
     // Progress bar background
     ctx.fillStyle = '#40444B';
     ctx.fillRect(200, 150, 500, 20);
-    
+
     // Progress bar
     const xpNeeded = 5 * Math.pow(levelData.level, 2) + 50 * levelData.level + 100;
     const progress = (levelData.xp / xpNeeded) * 500;
     ctx.fillStyle = '#5865F2';
     ctx.fillRect(200, 150, progress, 20);
-    
+
     // User info
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 24px Arial';
     ctx.fillText(user.username, 200, 50);
-    
+
     ctx.fillStyle = '#B9BBBE';
     ctx.font = '18px Arial';
     ctx.fillText(`Level: ${levelData.level}`, 200, 80);
     ctx.fillText(`Rank: #${rank}`, 200, 110);
     ctx.fillText(`XP: ${levelData.xp}/${xpNeeded}`, 200, 140);
-    
+
     // Avatar
     try {
         const avatar = await loadImage(user.displayAvatarURL({ extension: 'png', size: 128 }));
@@ -227,7 +228,59 @@ async function generateRankCard(user, levelData, rank) {
     } catch (error) {
         console.log('Error loading avatar:', error.message);
     }
-    
+
+    return canvas.toBuffer();
+}
+
+// ==================== WELCOME IMAGE GENERATOR ====================
+async function generateWelcomeImage(user, guild) {
+    const canvas = createCanvas(800, 300);
+    const ctx = canvas.getContext('2d');
+
+    // Background gradient
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+    gradient.addColorStop(0, '#667eea');
+    gradient.addColorStop(1, '#764ba2');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Welcome text
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 36px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('WELCOME', canvas.width / 2, 60);
+
+    // User info
+    ctx.font = 'bold 28px Arial';
+    ctx.fillText(user.username, canvas.width / 2, 100);
+
+    // Server info
+    ctx.font = '20px Arial';
+    ctx.fillStyle = '#E0E0E0';
+    ctx.fillText(`to ${guild.name}`, canvas.width / 2, 130);
+    ctx.fillText(`Member #${guild.memberCount}`, canvas.width / 2, 160);
+
+    // Avatar with border
+    try {
+        const avatar = await loadImage(user.displayAvatarURL({ extension: 'png', size: 256 }));
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(400, 220, 80, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(avatar, 320, 140, 160, 160);
+        ctx.restore();
+
+        // Avatar border
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(400, 220, 80, 0, Math.PI * 2);
+        ctx.stroke();
+    } catch (error) {
+        console.log('Error loading avatar for welcome:', error.message);
+    }
+
     return canvas.toBuffer();
 }
 
@@ -505,26 +558,47 @@ client.on('guildMemberAdd', async (member) => {
             }
         }
     }
-    
-    // Welcome Message
-    const welcomeChannel = member.guild.channels.cache.find(ch => 
+
+    // Welcome Message with Image
+    const welcomeChannel = member.guild.channels.cache.find(ch =>
         ch.name === defaultConfig.welcomeChannel && ch.type === ChannelType.GuildText
     );
-    
-    if (welcomeChannel) {
-        const embed = new EmbedBuilder()
-            .setColor('#00FF00')
-            .setTitle('🎉 Selamat Datang!')
-            .setDescription(`Halo ${member}! Selamat datang di **${member.guild.name}**!`)
-            .setThumbnail(member.user.displayAvatarURL())
-            .addFields(
-                { name: '👥 Member', value: `Kamu adalah member ke-${member.guild.memberCount}`, inline: true },
-                { name: '📅 Bergabung', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true }
-            )
-            .setFooter({ text: `ID: ${member.id}` })
-            .setTimestamp();
 
-        welcomeChannel.send({ embeds: [embed] });
+    if (welcomeChannel) {
+        try {
+            const welcomeImage = await generateWelcomeImage(member.user, member.guild);
+            const attachment = new AttachmentBuilder(welcomeImage, { name: 'welcome.png' });
+
+            const embed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('🎉 Selamat Datang!')
+                .setDescription(`Halo ${member}! Selamat datang di **${member.guild.name}**!`)
+                .setImage('attachment://welcome.png')
+                .addFields(
+                    { name: '👥 Member', value: `Kamu adalah member ke-${member.guild.memberCount}`, inline: true },
+                    { name: '📅 Bergabung', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true }
+                )
+                .setFooter({ text: `ID: ${member.id}` })
+                .setTimestamp();
+
+            welcomeChannel.send({ embeds: [embed], files: [attachment] });
+        } catch (error) {
+            console.log('Error generating welcome image:', error.message);
+            // Fallback to text-only welcome
+            const embed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('🎉 Selamat Datang!')
+                .setDescription(`Halo ${member}! Selamat datang di **${member.guild.name}**!`)
+                .setThumbnail(member.user.displayAvatarURL())
+                .addFields(
+                    { name: '👥 Member', value: `Kamu adalah member ke-${member.guild.memberCount}`, inline: true },
+                    { name: '📅 Bergabung', value: `<t:${Math.floor(Date.now() / 1000)}:R>`, inline: true }
+                )
+                .setFooter({ text: `ID: ${member.id}` })
+                .setTimestamp();
+
+            welcomeChannel.send({ embeds: [embed] });
+        }
     }
 });
 
@@ -1206,6 +1280,75 @@ client.on('messageCreate', async (message) => {
         }
     }
 
+    // BAD WORDS COMMAND
+    if (command === 'badwords' || command === 'badword') {
+        if (!message.member.permissions.has(PermissionFlagsBits.Administrator)) {
+            return message.reply('❌ Hanya Administrator yang bisa menggunakan command ini!');
+        }
+
+        const subCommand = args[0]?.toLowerCase();
+        const word = args.slice(1).join(' ').toLowerCase();
+
+        if (!subCommand) {
+            // List bad words
+            const embed = new EmbedBuilder()
+                .setColor('#FF6B6B')
+                .setTitle('🚫 Bad Words List')
+                .setDescription(db.automod.badWords.length > 0 ?
+                    db.automod.badWords.map(w => `\`${w}\``).join(', ') :
+                    'Tidak ada bad words yang dikonfigurasi.')
+                .setFooter({ text: 'Gunakan !badwords add <word> untuk menambah, !badwords remove <word> untuk menghapus' });
+
+            return message.channel.send({ embeds: [embed] });
+        }
+
+        if (subCommand === 'add' && word) {
+            if (db.automod.badWords.includes(word)) {
+                return message.reply('❌ Kata tersebut sudah ada dalam daftar bad words!');
+            }
+
+            db.automod.badWords.push(word);
+            saveDB();
+
+            const embed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('✅ Bad Word Added')
+                .setDescription(`Kata \`${word}\` berhasil ditambahkan ke daftar bad words.`);
+
+            message.channel.send({ embeds: [embed] });
+        }
+        else if (subCommand === 'remove' && word) {
+            const index = db.automod.badWords.indexOf(word);
+            if (index === -1) {
+                return message.reply('❌ Kata tersebut tidak ditemukan dalam daftar bad words!');
+            }
+
+            db.automod.badWords.splice(index, 1);
+            saveDB();
+
+            const embed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('✅ Bad Word Removed')
+                .setDescription(`Kata \`${word}\` berhasil dihapus dari daftar bad words.`);
+
+            message.channel.send({ embeds: [embed] });
+        }
+        else if (subCommand === 'clear') {
+            db.automod.badWords = [];
+            saveDB();
+
+            const embed = new EmbedBuilder()
+                .setColor('#FFA500')
+                .setTitle('🧹 Bad Words Cleared')
+                .setDescription('Semua bad words telah dihapus.');
+
+            message.channel.send({ embeds: [embed] });
+        }
+        else {
+            message.reply('❌ Usage: `!badwords` (list), `!badwords add <word>`, `!badwords remove <word>`, `!badwords clear`');
+        }
+    }
+
     // SERVERINFO COMMAND
     if (command === 'serverinfo' || command === 'server') {
         const { guild } = message;
@@ -1356,7 +1499,7 @@ client.on('messageCreate', async (message) => {
     // If command not found
     if (![
         'help', 'setprefix', 'ping', 'rank', 'leaderboard', 'setlevel', 'balance', 'daily', 'work',
-        'admincheck', 'warn', 'warnings', 'kick', 'mute', 'unmute', 'clear', 'ticket', 'close', 'reactionrole',
+        'admincheck', 'warn', 'warnings', 'kick', 'mute', 'unmute', 'clear', 'ticket', 'close', 'reactionrole', 'badwords',
         'serverinfo', 'userinfo', '8ball', 'poll', 'say', 'avatar', 'roleinfo'
     ].includes(command)) {
         message.reply(`❌ Command tidak dikenali! Ketik \`${prefix}help\` untuk melihat daftar commands.`);
