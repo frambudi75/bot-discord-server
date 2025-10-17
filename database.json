@@ -1,0 +1,82 @@
+{
+  "prefixes": {},
+  "levels": {
+    "1209053069787144192-850549648464805889": {
+      "xp": 121,
+      "level": 50,
+      "messages": 12,
+      "totalXP": 242
+    }
+  },
+  "warnings": {},
+  "economy": {
+    "1209053069787144192-850549648464805889": {
+      "coins": 1150,
+      "bank": 0,
+      "daily": 1760720551369,
+      "weekly": 0,
+      "inventory": [],
+      "transactions": [
+        {
+          "amount": 100,
+          "type": "income",
+          "timestamp": 1760720551369,
+          "description": "wallet"
+        },
+        {
+          "amount": 50,
+          "type": "income",
+          "timestamp": 1760720562854,
+          "description": "wallet"
+        }
+      ]
+    }
+  },
+  "giveaways": [],
+  "reactionRoles": {},
+  "customCommands": {},
+  "tickets": {
+    "1428794293413347380": {
+      "id": 1,
+      "user": "850549648464805889",
+      "guild": "1209053069787144192",
+      "reason": "No reason provided",
+      "createdAt": 1760721505261,
+      "closed": true,
+      "closedBy": "850549648464805889",
+      "closedAt": 1760721532987
+    }
+  },
+  "ticketCounters": {
+    "1209053069787144192": 1
+  },
+  "automod": {
+    "enabled": true,
+    "antiSpam": true,
+    "antiLink": false,
+    "antiInvite": true,
+    "badWords": [
+      "toxic",
+      "hate",
+      "spam"
+    ],
+    "whitelistedLinks": [
+      "youtube.com",
+      "discord.gg",
+      "github.com"
+    ],
+    "maxMentions": 5,
+    "maxMessages": 5,
+    "timeWindow": 5000
+  },
+  "levelRoles": {
+    "5": "Level 5",
+    "10": "Level 10",
+    "15": "Level 15",
+    "20": "Level 20",
+    "30": "Level 30",
+    "50": "Level 50"
+  },
+  "polls": {},
+  "reminders": []
+}
